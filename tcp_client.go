@@ -44,6 +44,18 @@ type VerifyPacket struct {
 	Key      string `json:"key"`
 }
 
+const (
+	_ = iota
+	_
+	HeartBeatPacketType
+	HeartBeatResponsePacketType
+	_
+	NotifyPacketType
+	_
+	VerifyPacketType
+	VerifyResponsePacketType
+)
+
 func getDanmukuInfo(roomId string) (string, []HostList, error) {
 	r, err := http.Get("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=" + roomId)
 	if err != nil {
@@ -58,6 +70,17 @@ func getDanmukuInfo(roomId string) (string, []HostList, error) {
 	return val.Data.Token, val.Data.HostList, nil
 }
 
+func toPacket(payload []byte, packetType int) []byte {
+	head := make([]byte, 16)
+	binary.BigEndian.PutUint32(head[0:4], uint32(len(payload)+16))
+	binary.BigEndian.PutUint16(head[4:6], uint16(16))
+	binary.BigEndian.PutUint16(head[6:8], uint16(1))
+	binary.BigEndian.PutUint32(head[8:12], uint32(packetType))
+	binary.BigEndian.PutUint32(head[12:16], uint32(1))
+
+	return append(head, payload...)
+}
+
 func main() {
 	t, hl, err := getDanmukuInfo("7734200")
 	if err != nil {
@@ -67,12 +90,6 @@ func main() {
 	s := hl[0].Host
 	i := hl[0].Port
 
-	// raddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%s", s, strconv.Itoa(i)))
-	// if err != nil {
-	// 	log.Fatalf("ResolveTcp Err: %#v", err)
-	// }
-	// fmt.Printf("raddr: %v\n", raddr)
-	// tcpClient, err = net.DialTCP("tcp", nil, raddr)
 	tcpClient, err := net.Dial("tcp", fmt.Sprintf("%s:%s", s, strconv.Itoa(i)))
 	if err != nil {
 		log.Fatalf("tcp dial err: %#v\n", err)
@@ -87,47 +104,53 @@ func main() {
 		Key:      t,
 	}
 
-	head := make([]byte, 16)
-
 	b, err := json.Marshal(verifyPacket)
-	binary.BigEndian.PutUint32(head[0:4], uint32(len(b)+16))
-	binary.BigEndian.PutUint16(head[4:6], uint16(16))
-	binary.BigEndian.PutUint16(head[6:8], uint16(1))
-	binary.BigEndian.PutUint32(head[8:12], uint32(7))
-	binary.BigEndian.PutUint32(head[12:16], uint32(1))
+	if err != nil {
+		log.Fatalf("json marshal err: %#v\n", err)
+	}
+	packet := toPacket(b, VerifyPacketType)
 
-	packet := append(head, b...)
-	fmt.Printf("%v\n", head)
-	fmt.Printf("packet: %s\nlen: %d", packet, len(packet))
+	fmt.Printf("packet: %s\nraw: %#v\n", packet, packet)
 
 	_, err = tcpClient.Write(packet)
 	if err != nil {
 		log.Fatalf("tcp write err: %#v\n", err)
 	}
+	heartBeatPacket := toPacket([]byte("[object Object]"), HeartBeatPacketType)
+	fmt.Printf("heartBearPacket: %#v\n", heartBeatPacket)
+	_, err = tcpClient.Write(heartBeatPacket)
+	if err != nil {
+		log.Fatalf("tcp write err: %#v\n", err)
+	}
+
 	go func() {
-		var r []byte
+		heartBeatTicker := time.NewTicker(30 * time.Second)
 		for {
-			byteCount, err := tcpClient.Read(r)
-			if err != nil {
-				log.Fatalf("tcp read err: %#v\n", err)
-			}
-			if byteCount != 0 {
-				fmt.Printf("byteCount: %v\n", byteCount)
-				fmt.Printf("string(r): %v\n", string(r))
+			select {
+			case <-heartBeatTicker.C:
+				heartBeatPacket = toPacket([]byte("[object Object]"), HeartBeatPacketType)
+				fmt.Printf("heartBearPacket: %s\n", heartBeatPacket)
+				_, err := tcpClient.Write(heartBeatPacket)
+				if err != nil {
+					log.Fatalf("发送心跳失败: %v", err)
+				}
+				log.Print("发送心跳成功")
 			}
 		}
 	}()
 
-	heartBeatTicker := time.NewTicker(30 * time.Second)
+	var messageCh = make(chan []byte)
+
+	var r []byte
 	for {
-		select {
-		case <-heartBeatTicker.C:
-			heartBeatPacket := make([]byte, 16)
-			_, err := tcpClient.Write(heartBeatPacket)
-			if err != nil {
-				log.Fatalf("发送心跳失败: %v", err)
-			}
-			log.Print("发送心跳成功")
+		byteCount, err := tcpClient.Read(r)
+		if err != nil {
+			log.Fatalf("tcp read err: %#v\n", err)
+		}
+		if byteCount != 0 {
+			log.Print(byteCount)
+			messageCh <- r[:byteCount]
 		}
 	}
+
 }
