@@ -16,8 +16,8 @@ type verifyPacketBody struct {
 const (
 	_ = iota
 	_
-	heartBeat
-	heartBeatResponse
+	heartbeat
+	heartbeatResponse
 	_
 	notify
 	_

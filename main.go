@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"time"
 )
 
 var danmakuUrl = url.URL{
@@ -36,6 +37,20 @@ func genVerifyPacket(p verifyPacketBody) (*packet, error) {
 	}
 }
 
+func genHeartbeatPacket() *packet {
+	var head []byte = make([]byte, 16)
+	binary.BigEndian.PutUint32(head, 16)
+	binary.BigEndian.PutUint16(head[4:], 16)
+	binary.BigEndian.PutUint16(head[6:], 1)
+	binary.BigEndian.PutUint32(head[8:], heartbeat)
+	binary.BigEndian.PutUint32(head[12:], 1)
+
+	return &packet{
+		head: head,
+		body: []byte{},
+	}
+}
+
 func main() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -51,6 +66,19 @@ func main() {
 		err := conn.Close()
 		if err != nil {
 			panic(err)
+		}
+	}(conn)
+
+	go func(conn *websocket.Conn) {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := conn.WriteMessage(websocket.TextMessage, genHeartbeatPacket().head); err != nil {
+					panic(err)
+				}
+			}
 		}
 	}(conn)
 
@@ -89,8 +117,8 @@ func handleMessage(msg []byte) {
 	packetVer := binary.BigEndian.Uint16(p.head[6:])
 	packetTyp := binary.BigEndian.Uint32(p.head[8:])
 	switch packetTyp {
-	case heartBeatResponse:
-		println("heart beat response", binary.BigEndian.Uint32(p.body))
+	case heartbeatResponse:
+		println("人气值", binary.BigEndian.Uint32(p.body))
 	case notify:
 		if packetVer == 3 {
 			brReader := brotli.NewReader(bytes.NewReader(p.body))
@@ -104,8 +132,14 @@ func handleMessage(msg []byte) {
 			} else {
 				panic(err)
 			}
+		} else if packetVer == 0 {
+			if b, err := io.ReadAll(bytes.NewReader(p.body)); err != nil {
+				panic(err)
+			} else {
+				println(string(b))
+			}
 		} else {
-			panic(fmt.Sprintf("unknown packet version: %d", packetVer))
+			panic(fmt.Sprintf("unknown packet version: %d\nraw bytes: %d\npacket body: %s\n", packetVer, p.body, string(p.body)))
 		}
 	}
 }
