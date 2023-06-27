@@ -117,8 +117,10 @@ func handleMessage(msg []byte) {
 	packetVer := binary.BigEndian.Uint16(p.head[6:])
 	packetTyp := binary.BigEndian.Uint32(p.head[8:])
 	switch packetTyp {
+	case verifyResponse:
+		log.Println("进入房间")
 	case heartbeatResponse:
-		println("人气值", binary.BigEndian.Uint32(p.body))
+		log.Println("人气值", binary.BigEndian.Uint32(p.body))
 	case notify:
 		if packetVer == 3 {
 			brReader := brotli.NewReader(bytes.NewReader(p.body))
@@ -141,6 +143,8 @@ func handleMessage(msg []byte) {
 		} else {
 			panic(fmt.Sprintf("unknown packet version: %d\nraw bytes: %d\npacket body: %s\n", packetVer, p.body, string(p.body)))
 		}
+	default:
+		panic(fmt.Sprintf("unknown packet type: %d\nraw bytes: %d\npacket body: %s\n", packetTyp, p.body, string(p.body)))
 	}
 }
 
