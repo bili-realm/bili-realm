@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"os"
 	"time"
 )
 
@@ -57,6 +58,13 @@ func main() {
 			log.Fatal(fmt.Errorf("%v", err))
 		}
 	}()
+	file, _ := os.OpenFile("danmakus.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(file)
 
 	conn, _, err := websocket.DefaultDialer.Dial(danmakuUrl.String(), nil)
 	if err != nil {
@@ -84,7 +92,7 @@ func main() {
 
 	if verifyPacket, err := genVerifyPacket(verifyPacketBody{
 		Uid:      0,
-		RoomId:   7734200,
+		RoomId:   80397,
 		ProtoVer: 3,
 		Platform: "web",
 		Type:     2,
@@ -102,12 +110,12 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		handleMessage(msg)
+		handleMessage(msg, io.Writer(file))
 	}
 
 }
 
-func handleMessage(msg []byte) {
+func handleMessage(msg []byte, writer io.Writer) {
 	p := packet{
 		head: msg[:16],
 		body: msg[16:],
@@ -119,8 +127,10 @@ func handleMessage(msg []byte) {
 	switch packetTyp {
 	case verifyResponse:
 		log.Println("进入房间")
+		writer.Write([]byte("进入房间\n"))
 	case heartbeatResponse:
 		log.Println("人气值", binary.BigEndian.Uint32(p.body))
+		writer.Write([]byte(fmt.Sprintf("人气值 %d\n", binary.BigEndian.Uint32(p.body))))
 	case notify:
 		if packetVer == 3 {
 			brReader := brotli.NewReader(bytes.NewReader(p.body))
@@ -130,6 +140,7 @@ func handleMessage(msg []byte) {
 				for _, packet := range packets {
 					//todo decode packet
 					println(string(packet.body))
+					writer.Write(append(packet.body, '\n'))
 				}
 			} else {
 				panic(err)
