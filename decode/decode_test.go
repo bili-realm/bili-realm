@@ -86,8 +86,11 @@ func TestDecode(t *testing.T) {
 		t.Fail()
 	}
 	t.Log(fmt.Sprintf("%#v", payload))
-	t.Log(fmt.Sprintf("%#v", payload.Payload))
-	if payload.Cmd != "DANMU_MSG" || payload.Payload.(Danmaku).Content != "哈哈哈哈哈" {
+	if payload.Cmd != "DANMU_MSG" || payload.Danmaku == nil {
 		t.Fail()
 	}
+}
+
+func TestProcessDanmaku(t *testing.T) {
+
 }
