@@ -1,8 +1,14 @@
 package decode
 
+import "time"
+
 type Payload struct {
-	Cmd     string
-	Payload any
+	Cmd string
+	*User
+	*Medal
+	*Danmaku
+	*SuperChat
+	*Gift
 }
 
 type User struct {
@@ -22,8 +28,13 @@ type Danmaku struct {
 	Extra     string
 	Emoticon  string
 	Content   string
-	User      User
 	Timestamp int64
+}
+
+type SuperChat struct {
+	Danmaku
+	Price    float64
+	KeepTime time.Duration
 }
 
 type Gift struct {

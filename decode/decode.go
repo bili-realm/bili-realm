@@ -1,9 +1,7 @@
 package decode
 
 import (
-	"fmt"
 	"github.com/bytedance/sonic"
-	"github.com/bytedance/sonic/ast"
 )
 
 func Decode(data []byte) (*Payload, error) {
@@ -27,12 +25,9 @@ func Decode(data []byte) (*Payload, error) {
 	return payload, nil
 }
 
-func processDanmaku(payload *Payload, data []byte) error {
-	var err error
-
+func processDanmaku(payload *Payload, data []byte) (err error) {
 	var info []interface{}
-	var infoNode ast.Node
-	if infoNode, err = sonic.Get(data, "info"); err == nil {
+	if infoNode, err := sonic.Get(data, "info"); err == nil {
 		if info, err = infoNode.Array(); err != nil {
 			return err
 		}
@@ -40,19 +35,18 @@ func processDanmaku(payload *Payload, data []byte) error {
 		return err
 	}
 	// todo process info gracefully
+	// todo user medal
 	content := info[1].(string)
 	timestamp := int64(info[0].([]any)[4].(float64))
 	uid := int64(info[2].([]any)[0].(float64))
 	uname := info[2].([]any)[1].(string)
-	// todo user medal
-	payload.Payload = Danmaku{
-		Content: content,
-		User: User{
-			Uid:  uid,
-			Name: uname,
-		},
+	payload.Danmaku = &Danmaku{
+		Content:   content,
 		Timestamp: timestamp,
 	}
-	fmt.Printf("process danmaku: %#v\n", payload)
+	payload.User = &User{
+		Uid:  uid,
+		Name: uname,
+	}
 	return nil
 }
