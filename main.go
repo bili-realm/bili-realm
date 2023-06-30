@@ -92,7 +92,7 @@ func main() {
 
 	if verifyPacket, err := genVerifyPacket(verifyPacketBody{
 		Uid:      0,
-		RoomId:   80397,
+		RoomId:   7734200,
 		ProtoVer: 3,
 		Platform: "web",
 		Type:     2,

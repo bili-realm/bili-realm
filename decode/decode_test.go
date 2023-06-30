@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var str = []byte(`
+var TestStr = []byte(`
 {
   "cmd": "DANMU_MSG",
   "info": [
@@ -81,7 +81,7 @@ var str = []byte(`
 }`)
 
 func TestDecode(t *testing.T) {
-	payload, err := Decode(str)
+	payload, err := Decode(TestStr)
 	if err != nil {
 		t.Fail()
 	}

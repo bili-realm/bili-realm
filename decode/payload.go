@@ -12,9 +12,8 @@ type Payload struct {
 }
 
 type User struct {
-	Uid   int64
-	Name  string
-	Medal Medal
+	Uid  int64
+	Name string
 }
 
 type Medal struct {
