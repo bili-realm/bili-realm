@@ -1,5 +1,5 @@
-emoticon flag: info[12]
-emoticon url: info[13].url
+emoticon flag: info[0][12]
+emoticon url: info[0][13].url
 content extra: info[15].extra
 user id: info[2][0]
 user name: info[2][1]
