@@ -1,6 +1,6 @@
 # bili-realm
 
-well, this is a Danmakus tool for bili live, still under development.
+Well, this is a Danmakus tool for bili live, still under development.
 
 ## Usage
 
@@ -24,13 +24,13 @@ func main() {
 	defer shutdown()
 	go func() {
 		// get the raw danmakus
-		for danmaku := range r.Danmakus {
-			fmt.Printf("%#v", danmaku)
+		for danmaku := range r.RawPacket {
+			fmt.Printf("%v", danmaku)
 		}
 	}()
 
 	// get all the parsed message
-	msgCh := r.receiveMessage()
+	msgCh := r.ReceiveMessage()
 	go func() {
 		for msg := range msgCh {
 			fmt.Println(msg)
